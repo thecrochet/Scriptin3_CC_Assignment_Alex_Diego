@@ -4,15 +4,24 @@ using Unity.Cinemachine;
 using KinematicCharacterController;
 using System;
 
+/// <summary>
+/// This script is the player controller. It plugs into the Kinematic Character Controller 
+/// motor and tells it how to rotate and move the character: run, jump (with coyote time,
+/// jump buffer and double jump) and ground pound.
+/// The KCC motor calls the ICharacterController methods below at fixed steps 
+/// </summary>
+
 [RequireComponent(typeof(KinematicCharacterMotor))]
 public class CC_ELEMENTO : MonoBehaviour, ICharacterController
 {
+    #region Public Fields
+
     // declare variables for the input and cinemachine camera
     public InputActionReference MoveAction;
     public InputActionReference JumpAction;
     public CinemachineCamera PlayerCamera;
 
-    // 2 More actions************************************
+    // 2 More actions : Running and ground Pound
     public InputActionReference RunAction;
     public InputActionReference GroundPoundAction;
 
@@ -21,7 +30,7 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
     // how much movement you can do on the air 
     public float MaxAirSpeed = 5f;
 
-    // While the run button is held, the speeds above are multiplied by this ********************************
+    // While the run button is held, the speeds above are multiplied by this 
     public float RunSpeedMultiplier = 1.6f;
 
     // how fast your velocity changes in the ground
@@ -37,7 +46,7 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
     // how strong the character falls
     public Vector3 Gravity = new Vector3(0, -10, 0);
 
-    // ******************************
+ 
     // Coyotoe Time : Extra time after leaving the ground where player can still jump
     public float CoyoteTime = 0.1f;
 
@@ -49,16 +58,20 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
 
     // How fast the character falls during the ground pound 
     public float GroundPoundSpeed = 30f;
-    // ******************************************************
+
+    #endregion
+
+
+    #region Private Fields
 
     // declare for the inputs variables
     private Vector3 _moveInput;
     private Vector3 _lookInput;
 
-    // True while the run button is held ******************************
+    // True while the run button is held 
     private bool _isRunning;
 
-    // 2 timers using at Infinity. meaning it happened a long time ago (so nothing triggers by accident)******************
+    // 2 timers using at Infinity. meaning it happened a long time ago 
     private float _timeSinceJumpRequested = Mathf.Infinity;
     private float _timeSinceGrounded = Mathf.Infinity;
 
@@ -67,7 +80,7 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
     private bool _hasDoubleJumped = true;
     private bool _hasJumpedThisFrame;
 
-    // Ground pound ***********************
+    // Ground pound 
     private bool _groundPoundRequested;
     private bool _isGroundPounding;
 
@@ -75,11 +88,21 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
     //declare the variable for the Motor of the character
     private KinematicCharacterMotor _kinematicMotor;
 
+    #endregion
+
+    #region Methods
+
+    /// <summary>
+    /// Unity calls this once before the first frame
+    /// </summary>
     private void Start()
     {
         Initialize();
     }
 
+    /// <summary>
+    /// Connects the KCC motor to this script.
+    /// </summary>
     private void Initialize()
     {
         //connect the motor from the KCC ASSETS to this game object
@@ -87,9 +110,15 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         _kinematicMotor.CharacterController = this;
     }
 
+
+    /// <summary>
+    /// Unity calls this every frame. Motor reads buttons later
+    /// because the motor runs on the physics clock
+    /// </summary>
+
     private void Update()
     {
-        // ********************************
+        
         if (JumpAction.action.WasPressedThisFrame())
         {
             // the timer goes to 0 as the player just pressed jump
@@ -102,14 +131,20 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         }
     }
 
+  
 
+    /// <summary>
+    /// The motor calls this before it updates the character. Reading the player input first.
+    /// </summary>
     public void BeforeCharacterUpdate(float deltaTime)
     {
         // this read the player input first 
         UpdateInputs();
     }
 
-  
+    /// <summary>
+    /// Reads the player input and turns it into a 3D direction relative to the camera.
+    /// </summary>
     private void UpdateInputs()
     {
         // connect the move action from the new input system values 2D into the variable
@@ -127,11 +162,13 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         // saves the move new direction into the look direction
         _lookInput = _moveInput;
 
-        // "IsPressed" is true for as long as the run button is held**************************
+        // "IsPressed" is true for as long as the run button is held
         _isRunning = RunAction != null && RunAction.action.IsPressed();
     }
 
+    /// </summary>
     // this is the logic for the rotation of the character
+    /// </summary>
     private Quaternion GetCameraPlanarRotation(Quaternion cameraRotation)
     {
         Vector3 cameraPlanarDirection = Vector3.ProjectOnPlane(cameraRotation * Vector3.forward, _kinematicMotor.CharacterUp).normalized;
@@ -144,22 +181,30 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         return Quaternion.LookRotation(cameraPlanarDirection, _kinematicMotor.CharacterUp);
     }
 
-    // this rotate the character
+
+    /// <summary>
+    /// Rotates the character smoothly toward the direction it is moving.
+    /// </summary>
     public void UpdateRotation(ref Quaternion currentRotation, float deltaTime)
     {
-        if (_lookInput == Vector3.zero) return;
+        // No input means nothing to turn toward
+        if (_lookInput == Vector3.zero)
+        {
+            return;
+        }
 
         Vector3 targetLookDirection = Vector3.Slerp(_kinematicMotor.CharacterForward, _lookInput, deltaTime * RotationRate);
 
         currentRotation = Quaternion.LookRotation(targetLookDirection, _kinematicMotor.CharacterUp);
     }
-
+    /// <summary>
     // this move the charater
     // currentVelocity has the direction and how fast the character move
+    /// </summary>
     public void UpdateVelocity(ref Vector3 currentVelocity, float deltaTime)
     {
 
-        //  If we are slamming down we return here *******************
+        //  If we are slamming down we return here
         if (HandleGroundPound(ref currentVelocity))
         {
             return;
@@ -181,14 +226,12 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         ApplyJumping(ref currentVelocity, deltaTime);
     }
 
-
-
-
-
+    /// </summary>
     // this is the logic for the grond movement
+    /// </summary>
     private void GroundMovement(ref Vector3 currentVelocity, float deltaTime)
     {
-        // Run button multiplies the speed ******************
+        // Run button multiplies the speed 
         float speed = MaxGroundSpeed;
         if (_isRunning)
         {
@@ -199,13 +242,15 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, deltaTime * GroundAcceleration);
     }
 
+    /// </summary>
     // this is the logic for the air movement
+    /// </summary>
     private void AirMovement(ref Vector3 currentVelocity, float deltaTime)
     {
         if (_moveInput.sqrMagnitude > 0)
         {
 
-            // Same idea in the air, so a running jump keeps its speed **********************
+            // Same idea in the air, so a running jump keeps its speed 
             float speed = MaxAirSpeed;
             if (_isRunning)
             {
@@ -223,8 +268,9 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         currentVelocity += Gravity * deltaTime;
     }
 
-    // ****************************************************
+    /// </summary>
     //Handle Jump
+    /// </summary>
     private void ApplyJumping(ref Vector3 currentVelocity, float deltaTime)
     {
         _hasJumpedThisFrame = false;
@@ -261,7 +307,9 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         _timeSinceJumpRequested += deltaTime;
     }
 
+    /// </summary>
     // Jump in its own method because the ground jump and the double jump use it
+    /// </summary>
     private void Jump(ref Vector3 currentVelocity)
     {
         
@@ -273,11 +321,10 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         // We take away the current up/down speed, then we add the jump force.
         currentVelocity += jumpForce - Vector3.Project(currentVelocity, _kinematicMotor.CharacterUp);
     }
-    // **********************************************
 
-   
-
-    // Ground pound. Returns true while we are slamming **************
+    /// </summary>
+    // Ground pound. Returns true while we are slamming 
+    /// </summary>
     private bool HandleGroundPound(ref Vector3 currentVelocity)
     {
         // start the slam
@@ -305,7 +352,9 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
         return true;
     }
 
-    // this runs after the motor moved the character ************************
+    /// </summary>
+    // this runs after the motor moved the character 
+    /// </summary>
     public void AfterCharacterUpdate(float deltaTime)
     {
         // resets the jump
@@ -343,7 +392,9 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
     {
     }
 
-    // The motor calls this right after it checked the ground *****************************
+    /// </summary>
+    // The motor calls this right after it checked the ground 
+    /// </summary>
     public void PostGroundingUpdate(float deltaTime)
     {
 
@@ -360,5 +411,8 @@ public class CC_ELEMENTO : MonoBehaviour, ICharacterController
     public void ProcessHitStabilityReport(Collider hitCollider, Vector3 hitNormal, Vector3 hitPoint, Vector3 atCharacterPosition, Quaternion atCharacterRotation, ref HitStabilityReport hitStabilityReport)
     {
     }
+
+#endregion
+
 }
 
