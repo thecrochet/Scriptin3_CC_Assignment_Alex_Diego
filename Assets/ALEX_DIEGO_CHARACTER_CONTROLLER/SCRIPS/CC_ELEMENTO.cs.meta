@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 809ce2af937b949979ac5402720c6d7a
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - MoveAction: {fileID: -2099379676528639254, guid: 6bc3fbc9c4da64a469990c67a32bbeab, type: 3}
+  - JumpAction: {instanceID: 0}
+  - PlayerCamera: {instanceID: 0}
+  - RunAction: {instanceID: 0}
+  - GroundPoundAction: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
